@@ -5,6 +5,7 @@ import com.example.demo.entity.User;
 import com.example.demo.model.LoginRequest;
 import com.example.demo.model.RegisterRequest;
 import com.example.demo.model.UserInfo;
+import com.example.demo.model.enums.ErrorCode;
 import com.example.demo.repository.LoginLogRepository;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.security.JwtUtil;
@@ -128,23 +129,23 @@ public class AuthServiceImpl implements AuthService {
 
         // 2. 后端二次校验 - 用户名
         if (!USERNAME_PATTERN.matcher(username).matches()) {
-            throw new RegisterException(1004, "用户名格式错误：需4~20位字母/数字/下划线，字母开头");
+            throw new RegisterException(ErrorCode.USERNAME_INVALID.getCode(), ErrorCode.USERNAME_INVALID.getMessage());
         }
         if (userRepository.existsByUsername(username)) {
-            throw new RegisterException(1001, "用户名已存在");
+            throw new RegisterException(ErrorCode.USERNAME_EXISTS.getCode(), ErrorCode.USERNAME_EXISTS.getMessage());
         }
 
         // 3. 后端二次校验 - 邮箱
         if (!EMAIL_PATTERN.matcher(email).matches()) {
-            throw new RegisterException(1005, "邮箱格式错误");
+            throw new RegisterException(ErrorCode.EMAIL_INVALID.getCode(), ErrorCode.EMAIL_INVALID.getMessage());
         }
         if (userRepository.existsByEmail(email)) {
-            throw new RegisterException(1002, "邮箱已注册");
+            throw new RegisterException(ErrorCode.EMAIL_EXISTS.getCode(), ErrorCode.EMAIL_EXISTS.getMessage());
         }
 
         // 4. 后端二次校验 - 密码强度
         if (!PASSWORD_PATTERN.matcher(password).matches()) {
-            throw new RegisterException(1003, "密码强度不足：至少8位，包含字母和数字");
+            throw new RegisterException(ErrorCode.PASSWORD_WEAK.getCode(), ErrorCode.PASSWORD_WEAK.getMessage());
         }
 
         // 5. 昵称处理：为空时默认取用户名
@@ -184,19 +185,19 @@ public class AuthServiceImpl implements AuthService {
         return switch (type) {
             case "username" -> {
                 if (!USERNAME_PATTERN.matcher(value.trim()).matches()) {
-                    yield AvailableResult.fail("用户名格式错误：需4~20位字母/数字/下划线，字母开头");
+                    yield AvailableResult.fail(ErrorCode.USERNAME_INVALID.getMessage());
                 }
                 if (userRepository.existsByUsername(value.trim())) {
-                    yield AvailableResult.fail("用户名已存在");
+                    yield AvailableResult.fail(ErrorCode.USERNAME_EXISTS.getMessage());
                 }
                 yield AvailableResult.ok();
             }
             case "email" -> {
                 if (!EMAIL_PATTERN.matcher(value.trim()).matches()) {
-                    yield AvailableResult.fail("邮箱格式错误");
+                    yield AvailableResult.fail(ErrorCode.EMAIL_INVALID.getMessage());
                 }
                 if (userRepository.existsByEmail(value.trim())) {
-                    yield AvailableResult.fail("邮箱已注册");
+                    yield AvailableResult.fail(ErrorCode.EMAIL_EXISTS.getMessage());
                 }
                 yield AvailableResult.ok();
             }
@@ -254,7 +255,7 @@ public class AuthServiceImpl implements AuthService {
         String key = "reg_" + ip + "_" + System.currentTimeMillis() / 60000;
         int count = rateLimitMap.merge(key, 1, Integer::sum);
         if (count > REGISTER_MAX_PER_IP) {
-            throw new RegisterException(1007, "注册过于频繁，请稍后再试");
+            throw new RegisterException(ErrorCode.REGISTER_TOO_FREQUENT.getCode(), ErrorCode.REGISTER_TOO_FREQUENT.getMessage());
         }
     }
 
