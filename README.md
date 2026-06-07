@@ -1,54 +1,53 @@
 # Demo 用户认证系统
 
-> **版本**：v3.0 &emsp; **状态**：架构演进中 &emsp; **架构模式**：前后端分离 + 云原生
+> **版本**：v2.5 &emsp; **状态**：待实施 &emsp; **原则**：务实可落地，每一项都能本地启动运行
 
 ---
 
 ## 目录
 
-- [1. 项目概述](#1-项目概述)
+- [1. 版本定位](#1-版本定位)
 - [2. 技术栈](#2-技术栈)
 - [3. 系统架构](#3-系统架构)
 - [4. 项目结构](#4-项目结构)
-- [5. 后端设计](#5-后端设计)
-- [6. 前端设计](#6-前端设计)
-- [7. API 文档](#7-api-文档)
-- [8. 数据库设计](#8-数据库设计)
-- [9. 安全体系](#9-安全体系)
-- [10. 可观测性](#10-可观测性)
-- [11. 测试体系](#11-测试体系)
-- [12. DevOps & CI/CD](#12-devops--cicd)
-- [13. 部署架构](#13-部署架构)
-- [14. 开发规范](#14-开发规范)
-- [15. 版本演进路线](#15-版本演进路线)
+- [5. 升级清单（基于 v1.0）](#5-升级清单基于-v10)
+- [6. 后端升级详解](#6-后端升级详解)
+- [7. 前端工程详解](#7-前端工程详解)
+- [8. API 文档](#8-api-文档)
+- [9. 数据库设计](#9-数据库设计)
+- [10. 安全体系](#10-安全体系)
+- [11. 部署方案](#11-部署方案)
+- [12. 本地启动步骤](#12-本地启动步骤)
+- [13. 实施计划](#13-实施计划)
 
 ---
 
-## 1. 项目概述
+## 1. 版本定位
 
-### 1.1 项目定位
-
-Demo 用户认证系统，基于 **Spring Boot + Vue 3** 前后端分离，覆盖注册、登录、会话管理、退出等完整认证闭环。采用 JWT 无状态认证、Swagger 自动文档、Docker 容器化部署，具备生产级可观测性和自动化测试体系。
-
-### 1.2 功能矩阵
-
-| 模块 | 功能 |
-|------|------|
-| 🔐 认证 | 登录 / 退出 / 会话校验 / OAuth2 第三方登录 / MFA 双因素 |
-| 📝 注册 | 邮箱注册 / 唯一性校验 / 验证码 / 异步欢迎邮件 |
-| 👤 用户 | 个人信息 / 登录日志 / 密码策略 |
-| 📋 文档 | Swagger / Knife4j / OpenAPI 3 / GraphQL Schema |
-| 📊 监控 | Micrometer + Prometheus + Grafana + OpenTelemetry 链路追踪 |
-
-### 1.3 架构演进路线
+### 1.1 三版对比
 
 ```
-v1.0 ──────────▶ v2.0 ──────────▶ v3.0（当前）
-单体 MVC        前后端分离        云原生全栈
-Thymeleaf       Vue 3 SPA        Nuxt 3 SSR
-无文档           Swagger          GraphQL 双协议
-单机部署         Docker           K8s + GraalVM
+v1.0 ✅          v2.5 🎯                 v3.0 📋
+已交付            务实升级                 前沿蓝图
+────────         ───────────             ──────────
+单体 MVC         前后端分离               云原生全栈
+Thymeleaf        Vue 3 SPA              Nuxt 3 SSR
+无文档            Swagger                 GraphQL
+单机              Docker Compose          K8s + GraalVM
 ```
+
+### 1.2 v2.5 选型原则
+
+> **每一项都满足三个条件：① 本地可启动 ② 改动成本低 ③ 有实际收益**
+
+| 纳入 | 理由 | 搁置（v3.0） | 理由 |
+|------|------|-------------|------|
+| Virtual Threads | 一行配置 | GraalVM | 配置复杂，本地编译慢 |
+| Flyway | 加依赖即可 | — | — |
+| Knife4j Swagger | 加依赖+1个配置类 | GraphQL | 双协议维护成本高 |
+| Vue 3 + Vite SPA | 独立工程，不依赖 Node 服务端 | Nuxt 3 SSR | 需额外 Node Server |
+| Docker Compose | 一键启动 | K8s | 本地不可行 |
+| ErrorCode 枚举 | 建一个文件 | — | — |
 
 ---
 
@@ -56,165 +55,114 @@ Thymeleaf       Vue 3 SPA        Nuxt 3 SSR
 
 ### 2.1 后端
 
-| 类别 | 技术 | 版本 | 说明 |
-|------|------|------|------|
-| 基础框架 | Spring Boot | 4.0.6 | 应用框架 |
-| 语言 | Java | 21 LTS | Virtual Threads / Pattern Matching / Sealed Classes |
-| Web | Spring MVC + GraphQL | — | REST + GraphQL 双协议 |
-| 安全 | Spring Security | 7.x | JWT + OAuth2 + TOTP |
-| Token | jjwt | 0.12.6 | JWT 生成与校验 |
-| ORM | Spring Data JPA + JdbcClient | — | 常规查询用 JPA，性能敏感用 JdbcClient |
-| 数据库迁移 | Flyway | 10.x | 版本化数据库迁移 |
-| 数据库 | MySQL | 9.7 | 主存储 |
-| 缓存 | Redis + Spring Cache | 7.x | Token 黑名单 / 分布式限流 / `@Cacheable` |
-| 消息队列 | RabbitMQ（可选） | 3.x | 异步事件驱动 |
-| 定时任务 | XXL-Job（可选） | 2.x | 分布式定时调度 |
-| API 文档 | Knife4j + SpringDoc | 4.x | OpenAPI 3.0 |
-| 校验 | Jakarta Validation + Passay | — | 参数校验 + 密码策略 |
-| 虚拟线程 | Project Loom | Java 21 内置 | 高并发轻量线程 |
-| 原生编译 | GraalVM Native Image | 21 | 毫秒级启动 |
-| 可观测性 | Micrometer + OpenTelemetry | — | 指标 + 链路 |
-| 工具库 | Lombok | 1.18+ | 减少样板代码 |
+| 类别 | 技术 | 版本 | 用途 | 新增/已有 |
+|------|------|------|------|----------|
+| 框架 | Spring Boot | 4.0.6 | 应用基础 | 已有 |
+| 语言 | Java | 21 | Virtual Threads 支持 | 已有 |
+| Web | Spring MVC | — | REST 控制器 | 已有 |
+| 安全 | Spring Security | 7.x | 认证授权 | 已有 |
+| JWT | jjwt | 0.12.6 | Token 生成 | 已有 |
+| ORM | Spring Data JPA | — | 数据访问 | 已有 |
+| 数据库 | MySQL | 9.7 | 主存储 | 已有 |
+| 数据库迁移 | **Flyway** | 10.x | SQL 版本化管理 | **新增** |
+| API 文档 | **Knife4j + SpringDoc** | 4.x | Swagger 在线文档+调试 | **新增** |
+| 密码 | BCrypt (Spring Security) | — | 密码哈希 | 已有 |
+| 校验 | Jakarta Validation | — | DTO 校验 | 已有 |
+| 并发 | **Virtual Threads** | Java 21 | 一行开启，并发数 x10 | **新增** |
+| 构建 | Maven | 3.8+ | 依赖管理 | 已有 |
+| 工具 | Lombok | 1.18+ | 减少样板代码 | 已有 |
 
 ### 2.2 前端
 
-| 类别 | 技术 | 版本 | 说明 |
+| 类别 | 技术 | 版本 | 用途 |
 |------|------|------|------|
-| 全栈框架 | Nuxt 3 | 3.x | SSR + SSG + SPA 混合渲染 |
-| 核心 | Vue | 3.4+ | Composition API |
-| 构建 | Vite | 6.x | 极速 HMR |
-| 语言 | TypeScript | 5.x | 严格模式 |
-| 路由 | Vue Router | 4.x | 自动路由 + 守卫 |
-| 状态管理 | Pinia | 2.x | 客户端状态 |
-| 服务端状态 | TanStack Query | 5.x | 缓存 / 自动重取 / 乐观更新 |
-| HTTP | Axios | 1.x | 拦截器 + 自动 Cookie |
-| UI 库 | Element Plus | 2.x | 企业级组件 |
-| 原子 CSS | UnoCSS | 0.x | 按需生成，5x 构建速度 |
-| 测试 | Vitest + Playwright | — | 单元 + E2E |
-| 组件文档 | Storybook | 8.x | 可视化组件开发 |
-| Mock | MSW | 2.x | 拦截网络请求 |
-| 国际化 | Vue I18n | 9.x | 多语言 |
-| PWA | Vite PWA Plugin | — | 离线可用 |
-| 包管理 | pnpm | 9.x | monorepo |
+| 框架 | **Vue** | 3.4+ | Composition API |
+| 构建 | **Vite** | 5.x | 极速 HMR |
+| 语言 | **TypeScript** | 5.x | 类型安全 |
+| 路由 | **Vue Router** | 4.x | SPA 路由 + 导航守卫 |
+| 状态管理 | **Pinia** | 2.x | 轻量状态管理 |
+| HTTP | **Axios** | 1.x | 请求拦截 + Cookie 自动携带 |
+| UI 库 | **Element Plus** | 2.x | 企业级组件 |
+| 测试 | **Vitest** | 1.x | 单元测试 |
+| 包管理 | pnpm | 9.x | 快速依赖管理 |
 
-### 2.3 DevOps
+### 2.3 基础设施
 
-| 类别 | 技术 |
-|------|------|
-| CI/CD | GitHub Actions |
-| 容器 | Docker + Docker Compose |
-| 编排 | Kubernetes（可选） |
-| 镜像仓库 | Docker Hub / GitHub Container Registry |
-| GitOps | ArgoCD（可选） |
+| 组件 | 用途 | 运行方式 |
+|------|------|---------|
+| MySQL 9.7 | 数据存储 | Docker 容器 |
+| Nginx | 反向代理 + 静态资源 | Docker 容器 |
+| Backend | Spring Boot | 宿主机 / Docker |
+| Frontend | Vite Dev Server | 宿主机 (dev) / Nginx (prod) |
 
 ---
 
 ## 3. 系统架构
 
-### 3.1 架构全景图（v3.0）
+### 3.1 架构全景
 
 ```
-                              ┌───────────────────────────┐
-                              │        CDN / WAF           │
-                              │     Cloudflare / 阿里云     │
-                              └─────────────┬─────────────┘
-                                            │
-                              ┌─────────────▼─────────────┐
-                              │     Nginx / Kong 网关       │
-                              │  SSL 终结 · 限流 · 路由     │
-                              │  /api/* → Backend          │
-                              │  /*     → Frontend Static  │
-                              └──┬────────────┬───────────┘
-                                 │            │
-                    /api/*       │            │ /*
-                                 ▼            ▼
-┌──────────────────────────┐  ┌──────────────────────────────┐
-│     Backend (Spring Boot) │  │   Frontend (Nuxt 3 + Vite)   │
-│     Port: 8080            │  │   Port: 3000 (SSR)           │
-│                           │  │   5173 (dev HMR)             │
-│  ┌─────────────────────┐  │  │                              │
-│  │  REST + GraphQL 双协议│  │  │  ┌────────────────────────┐ │
-│  ├─────────────────────┤  │  │  │  Nuxt 3 Hybrid Render   │ │
-│  │  Spring Security     │  │  │  │  · SSR: 首屏秒开        │ │
-│  │  · JWT + OAuth2+MFA │  │  │  │  · SSG: 静态预渲染      │ │
-│  ├─────────────────────┤  │  │  │  · SPA: 交互页          │ │
-│  │  Virtual Threads     │  │  │  ├────────────────────────┤ │
-│  │  高并发轻量线程       │  │  │  │  Pinia + TanStack Query│ │
-│  ├─────────────────────┤  │  │  │  · 客户端状态           │ │
-│  │  Redis Cache         │  │  │  │  · 服务端缓存           │ │
-│  │  · Token 黑名单       │  │  │  │  · 乐观更新             │ │
-│  │  · 分布式限流         │  │  │  ├────────────────────────┤ │
-│  │  · @Cacheable        │  │  │  │  UnoCSS 原子 CSS        │ │
-│  ├─────────────────────┤  │  │  │  Element Plus 组件       │ │
-│  │  Flyway 迁移          │  │  │  ├────────────────────────┤ │
-│  │  JPA + JdbcClient    │  │  │  │  Axios + MSW Mock      │ │
-│  ├─────────────────────┤  │  │  │  Vue I18n 国际化        │ │
-│  │  Micrometer          │  │  │  │  PWA 离线支持           │ │
-│  │  OpenTelemetry       │  │  │  └────────────────────────┘ │
-│  └──────────┬──────────┘  │  └──────────────────────────────┘
-│             │              │
-└─────────────┼──────────────┘
-              │
-    ┌─────────┼──────────┐
-    ▼         ▼          ▼
-┌────────┐ ┌────────┐ ┌──────────┐
-│ MySQL  │ │ Redis  │ │ RabbitMQ │
-│ :3306  │ │ :6379  │ │ :5672    │
-└────────┘ └────────┘ └──────────┘
-
-┌──────────────────────────────────┐
-│        可观测性栈                  │
-│  Prometheus → Grafana（指标）     │
-│  Jaeger → 链路追踪                │
-│  Loki → 日志聚合                  │
-└──────────────────────────────────┘
+                http://localhost
+                      │
+              ┌───────▼───────┐
+              │    Nginx:80    │  反向代理 + 静态资源
+              │  /api/* → 后端 │
+              │  /*     → 前端 │
+              └───┬───────┬───┘
+                  │       │
+       /api/*     │       │  /*
+                  ▼       ▼
+    ┌─────────────┐  ┌──────────────┐
+    │   Backend   │  │   Frontend    │
+    │   :8080     │  │   Vite :5173  │
+    │             │  │   (开发模式)   │
+    │ Spring Boot │  │   或 Nginx    │
+    │ + Swagger   │  │   (生产模式)   │
+    │ + Flyway    │  │              │
+    └──────┬──────┘  └──────────────┘
+           │
+    ┌──────▼──────┐
+    │   MySQL:3306 │
+    │   Docker     │
+    └─────────────┘
 ```
 
-### 3.2 认证流程（v3.0 增强版）
+### 3.2 请求流程
 
 ```
-                 ┌─────────────────────────────┐
-                 │       登录方式选择            │
-                 │  ┌──────────┬─────────────┐ │
-                 │  │ 账号密码  │ GitHub OAuth │ │
-                 │  │ + TOTP   │ 微信扫码     │ │
-                 │  └──────────┴─────────────┘ │
-                 └─────────────┬───────────────┘
-                               │
-                    ┌──────────▼──────────┐
-                    │   AuthService        │
-                    │   ① 验证码校验       │
-                    │   ② 密码 BCrypt 校验  │
-                    │   ③ TOTP MFA 校验    │
-                    │   ④ 状态检查         │
-                    │   ⑤ 生成 JWT         │
-                    │   ⑥ 写入 Redis 白名单 │
-                    │   ⑦ HttpOnly Cookie  │
-                    └──────────┬──────────┘
-                               │
-              ┌────────────────┼────────────────┐
-              │                │                │
-              ▼                ▼                ▼
-      ┌──────────┐    ┌──────────────┐    ┌──────────┐
-      │ 记录日志  │    │ 异步事件      │    │ 返回响应  │
-      │ t_login  │    │ 欢迎邮件      │    │ JWT Cookie│
-      │ _log     │    │ 操作审计      │    │ + UserInfo│
-      └──────────┘    └──────────────┘    └──────────┘
-```
-
-### 3.3 请求生命周期
-
-```
-请求 → Nginx(SSL+限流) → Spring Boot
+浏览器访问 http://localhost
   │
-  ├── JwtAuthFilter（从 Cookie 提取 JWT）
-  ├── RateLimitFilter（Redis 分布式限流）
-  ├── Controller（@Valid 参数校验）
-  │     └── Service（业务逻辑）
-  │           ├── Repository（JPA / JdbcClient）
-  │           ├── Cache（Redis @Cacheable）
-  │           └── Event（Spring Event → RabbitMQ）
-  └── Response → Micrometer 埋点 → OpenTelemetry Span
+  ▼
+Nginx 路由分发
+  ├── /api/auth/*  → 后端 :8080
+  │     ├── JwtAuthFilter   (Cookie → JWT → SecurityContext)
+  │     ├── @Valid 校验     (参数验证)
+  │     ├── Service         (业务逻辑 + @Transactional)
+  │     └── JSON Response   (ApiResponse<T>)
+  │
+  └── /*  → 前端静态文件
+        └── Vue SPA → Vue Router → 页面渲染
+             └── Axios → /api/* → 后端
+```
+
+### 3.3 认证流程
+
+```
+登录:  前端提交 → POST /api/v1/auth/login
+         → AuthService.login()
+           → ① 查找用户 (JPA)
+           → ② BCrypt 密码比对
+           → ③ 更新 last_login_time / ip
+           → ④ 生成 JWT (Virtual Thread 处理)
+           → ⑤ 写入 HttpOnly Cookie
+           → ⑥ 返回 UserInfo
+
+后续:  每个请求 → JwtAuthFilter
+         → 从 Cookie 提取 JWT
+         → 验证签名 + 过期
+         → 查询用户状态
+         → 设置 SecurityContext
+         → Controller 处理
 ```
 
 ---
@@ -223,25 +171,19 @@ Thymeleaf       Vue 3 SPA        Nuxt 3 SSR
 
 ```
 cc_project/
-├── backend/
-│   ├── pom.xml
-│   ├── Dockerfile                        # 多阶段构建
+├── backend/                               # 后端 Spring Boot
+│   ├── pom.xml                            # 新增：Flyway、Knife4j 依赖
+│   ├── Dockerfile
 │   └── src/main/
 │       ├── java/com/example/demo/
 │       │   ├── DemoApplication.java
-│       │   ├── config/
+│       │   ├── config/                     # 配置包
 │       │   │   ├── SecurityConfig.java
-│       │   │   ├── SwaggerConfig.java
-│       │   │   ├── CorsConfig.java
-│       │   │   ├── RedisConfig.java
-│       │   │   ├── VirtualThreadConfig.java
-│       │   │   └── ObservabilityConfig.java
+│       │   │   ├── SwaggerConfig.java      # 新增
+│       │   │   └── CorsConfig.java         # 新增：跨域
 │       │   ├── controller/
-│       │   │   ├── AuthController.java
+│       │   │   ├── AuthController.java     # 加 Swagger 注解
 │       │   │   └── GlobalExceptionHandler.java
-│       │   ├── graphql/                  # GraphQL 层
-│       │   │   ├── AuthGraphQLController.java
-│       │   │   └── UserGraphQLController.java
 │       │   ├── service/
 │       │   │   ├── AuthService.java
 │       │   │   └── impl/AuthServiceImpl.java
@@ -252,287 +194,184 @@ cc_project/
 │       │   │   ├── User.java
 │       │   │   └── LoginLog.java
 │       │   ├── model/
-│       │   │   ├── request/
+│       │   │   ├── request/                # 拆分
 │       │   │   │   ├── LoginRequest.java
 │       │   │   │   └── RegisterRequest.java
-│       │   │   ├── response/
+│       │   │   ├── response/               # 拆分
 │       │   │   │   ├── LoginResponse.java
 │       │   │   │   ├── UserInfo.java
 │       │   │   │   └── ApiResponse.java
 │       │   │   └── enums/
-│       │   │       └── ErrorCode.java
+│       │   │       └── ErrorCode.java      # 新增
 │       │   ├── security/
 │       │   │   ├── JwtUtil.java
-│       │   │   ├── JwtAuthFilter.java
-│       │   │   ├── RateLimitFilter.java
-│       │   │   └── TotpService.java      # MFA 服务
-│       │   ├── event/                    # 事件驱动
-│       │   │   ├── UserRegisteredEvent.java
-│       │   │   ├── UserLoginEvent.java
-│       │   │   └── EventListener.java
+│       │   │   └── JwtAuthFilter.java
 │       │   └── util/
-│       │       └── IpUtil.java
+│       │       └── IpUtil.java             # 抽取
 │       └── resources/
-│           ├── application.yml
+│           ├── application.yml             # 多环境
 │           ├── application-dev.yml
-│           ├── application-prod.yml
-│           └── db/migration/             # Flyway 脚本
+│           └── db/migration/               # Flyway SQL
 │               ├── V1__init_t_user.sql
 │               └── V2__init_t_login_log.sql
 │
-├── frontend/
-│   ├── nuxt.config.ts
+├── frontend/                               # 前端 Vue 3
 │   ├── package.json
-│   ├── Dockerfile
+│   ├── vite.config.ts
+│   ├── tsconfig.json
+│   ├── index.html
 │   └── src/
-│       ├── app.vue
-│       ├── pages/                        # Nuxt 自动路由
-│       │   ├── index.vue                 # /
-│       │   ├── login.vue                 # /login
-│       │   ├── register.vue              # /register
-│       │   └── dashboard.vue             # /dashboard
+│       ├── main.ts
+│       ├── App.vue
+│       ├── router/index.ts                 # 路由 + 守卫
+│       ├── stores/
+│       │   ├── auth.ts                     # Pinia 认证
+│       │   └── user.ts                     # Pinia 用户
+│       ├── api/
+│       │   ├── request.ts                  # Axios 实例
+│       │   └── auth.ts                     # 认证 API
+│       ├── views/
+│       │   ├── LoginView.vue
+│       │   ├── RegisterView.vue
+│       │   └── DashboardView.vue
 │       ├── components/
-│       │   ├── auth/
-│       │   │   ├── AuthCard.vue
-│       │   │   ├── LoginForm.vue
-│       │   │   ├── RegisterForm.vue
-│       │   │   └── PasswordStrength.vue
-│       │   ├── layout/
-│       │   │   └── AppHeader.vue
-│       │   └── common/
-│       │       └── ConfirmDialog.vue
+│       │   ├── AuthCard.vue                # 认证卡片
+│       │   └── PasswordStrength.vue        # 密码强度
 │       ├── composables/
 │       │   ├── useAuth.ts
-│       │   ├── useValidation.ts
-│       │   └── usePasswordStrength.ts
-│       ├── stores/
-│       │   ├── auth.ts
-│       │   └── user.ts
-│       ├── api/
-│       │   ├── request.ts                # Axios 实例
-│       │   ├── auth.ts
-│       │   └── user.ts
-│       ├── types/
-│       │   └── index.ts
-│       ├── locales/                      # 国际化
-│       │   ├── zh-CN.json
-│       │   └── en-US.json
-│       └── mocks/                        # MSW Mock
-│           └── handlers.ts
+│       │   └── useValidation.ts
+│       ├── types/index.ts
+│       └── styles/
+│           └── variables.scss
 │
-├── docker-compose.yml
-├── docker-compose.prod.yml
-├── .github/workflows/
-│   ├── ci-backend.yml
-│   ├── ci-frontend.yml
-│   └── deploy.yml
+├── docker-compose.yml                      # MySQL + Nginx + Backend + Frontend
+├── nginx.conf                              # Nginx 配置
 └── README.md
 ```
 
 ---
 
-## 5. 后端设计
+## 5. 升级清单（基于 v1.0）
 
-### 5.1 Java 21 新特性深度应用
+### 5.1 后端改动（6 项）
 
-```java
-// ── Virtual Threads（虚拟线程）──
-// application.yml: spring.threads.virtual.enabled=true
-// 效果：Tomcat 请求处理从 200 平台线程 → 数万虚拟线程
+| # | 改动 | 文件 | 工作量 |
+|---|------|------|--------|
+| 1 | Virtual Threads | `application.yml` +1 行 | 1 分钟 |
+| 2 | Flyway 数据库迁移 | `pom.xml` + 移动 SQL 到 `db/migration/` | 10 分钟 |
+| 3 | Knife4j Swagger | `pom.xml` + `SwaggerConfig.java` | 15 分钟 |
+| 4 | ErrorCode 枚举 | 新建 `ErrorCode.java`，替换硬编码 | 10 分钟 |
+| 5 | 包结构优化 | 拆 `model/` → `request/` `response/` `enums/` | 15 分钟 |
+| 6 | CORS 跨域 | `CorsConfig.java` | 5 分钟 |
 
-// ── Pattern Matching ──
-// 之前：
-if (obj instanceof User user) {
-    String name = user.getUsername();
-}
+### 5.2 前端新建（7 项）
 
-// 现在（switch 模式匹配）：
-var result = switch (authResult) {
-    case LoginSuccess(var user)    -> "欢迎 " + user.getNickname();
-    case LoginFailed(var reason)   -> "登录失败: " + reason;
-    case AccountLocked(var until)  -> "账号锁定至 " + until;
-};
+| # | 内容 | 文件数 | 工作量 |
+|---|------|--------|--------|
+| 1 | Vite + Vue 3 脚手架 | `package.json`、`vite.config.ts` 等 | 10 分钟 |
+| 2 | 路由 + 守卫 | `router/index.ts` | 15 分钟 |
+| 3 | Axios 封装 | `api/request.ts`、`api/auth.ts` | 15 分钟 |
+| 4 | Pinia Store | `stores/auth.ts` | 15 分钟 |
+| 5 | 登录页 | `views/LoginView.vue` | 30 分钟 |
+| 6 | 注册页 | `views/RegisterView.vue` | 45 分钟 |
+| 7 | 仪表盘 | `views/DashboardView.vue` | 20 分钟 |
 
-// ── Sealed Classes ──
-public sealed interface AuthResult
-    permits LoginSuccess, LoginFailed, AccountLocked {
-}
-public record LoginSuccess(UserInfo user) implements AuthResult {}
-public record LoginFailed(String reason) implements AuthResult {}
-public record AccountLocked(LocalDateTime until) implements AuthResult {}
+### 5.3 基础设施（3 项）
 
-// ── String Templates（预览）──
-var msg = STR."用户 \{username} 登录成功，IP: \{ip}";
-```
+| # | 内容 | 文件 | 工作量 |
+|---|------|------|--------|
+| 1 | Docker Compose | `docker-compose.yml` | 15 分钟 |
+| 2 | Nginx 配置 | `nginx.conf` | 10 分钟 |
+| 3 | 后端 Dockerfile | `Dockerfile` | 5 分钟 |
 
-### 5.2 虚拟线程配置
+**总工作量**：后端 1 小时 + 前端 2.5 小时 + 基础设施 0.5 小时 ≈ **4 小时**
 
-```java
-@Configuration
-public class VirtualThreadConfig {
+---
 
-    @Bean
-    public TomcatProtocolHandlerCustomizer<?> protocolHandlerCustomizer() {
-        return protocolHandler -> {
-            protocolHandler.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
-        };
-    }
+## 6. 后端升级详解
 
-    // 或者直接：spring.threads.virtual.enabled=true
-}
-```
+### 6.1 Virtual Threads（虚拟线程）
 
 ```yaml
 # application.yml
 spring:
   threads:
     virtual:
-      enabled: true    # 一行开启虚拟线程
+      enabled: true
 ```
 
-### 5.3 核心类设计（Swagger 注解完整版）
+**效果**：Tomcat 请求处理从 200 个平台线程 → 数万虚拟线程，阻塞 I/O 场景（如数据库查询）吞吐量提升 5-10 倍。
+
+**成本**：一行配置，零代码改动。Java 21 内置，无需额外依赖。
+
+### 6.2 Flyway 数据库迁移
+
+```xml
+<!-- pom.xml 新增 -->
+<dependency>
+    <groupId>org.flywaydb</groupId>
+    <artifactId>flyway-mysql</artifactId>
+</dependency>
+```
+
+```sql
+-- 将现有 schema.sql 拆为版本化脚本，放到 resources/db/migration/
+
+-- V1__init_t_user.sql（建表语句）
+-- V2__init_t_login_log.sql（建表语句）
+```
+
+```yaml
+# application.yml：Flyway 自动执行，无需手动建表
+spring:
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  jpa:
+    hibernate:
+      ddl-auto: validate   # 改为 validate，由 Flyway 管理表结构
+```
+
+**效果**：应用启动时自动执行数据库迁移，版本可追溯、可回滚。
+
+### 6.3 Knife4j / Swagger API 文档
+
+```xml
+<!-- pom.xml 新增 -->
+<dependency>
+    <groupId>com.github.xiaoymin</groupId>
+    <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
+    <version>4.5.0</version>
+</dependency>
+```
 
 ```java
-// ==================== 实体 ====================
-@Entity
-@Table(name = "t_user")
-@Data @Builder
-@NoArgsConstructor @AllArgsConstructor
-public class User {
-    @Id @GeneratedValue(strategy = IDENTITY)
-    private Long id;
+// config/SwaggerConfig.java
+@Configuration
+public class SwaggerConfig {
 
-    @Column(nullable = false, unique = true, length = 50)
-    private String username;
-
-    @Column(nullable = false, unique = true, length = 100)
-    private String email;
-
-    @JsonIgnore
-    @Column(name = "password_hash", nullable = false, length = 255)
-    private String passwordHash;
-
-    @Column(length = 50) private String nickname;
-    @Column(name = "avatar_url", length = 255) private String avatarUrl;
-
-    @Builder.Default private Integer status = 1;
-    @Builder.Default
-    @Column(name = "email_verified")
-    private Integer emailVerified = 0;
-
-    @Column(name = "register_ip", length = 45) private String registerIp;
-    @Column(name = "last_login_time") private LocalDateTime lastLoginTime;
-    @Column(name = "last_login_ip", length = 45) private String lastLoginIp;
-
-    @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
-    @PrePersist void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
-    }
-    @PreUpdate void onUpdate() {
-        updatedAt = LocalDateTime.now();
+    @Bean
+    public OpenAPI openAPI() {
+        return new OpenAPI()
+            .info(new Info()
+                .title("Demo 用户认证系统 API")
+                .version("v2.5")
+                .description("基于 Spring Boot + Vue 3 的用户认证系统")));
     }
 }
+```
 
-// ==================== DTO（含完整 Swagger 注解）====================
-@Schema(description = "登录请求")
-public record LoginRequest(
-    @Schema(description = "用户名或邮箱", example = "admin",
-            requiredMode = RequiredMode.REQUIRED)
-    @NotBlank(message = "账号不能为空")
-    String account,
-
-    @Schema(description = "密码", example = "123456",
-            requiredMode = RequiredMode.REQUIRED)
-    @NotBlank(message = "密码不能为空")
-    String password,
-
-    @Schema(description = "记住我（延长至7天）", defaultValue = "false")
-    boolean rememberMe,
-
-    @Schema(description = "TOTP 验证码（开启 MFA 时必填）")
-    String totpCode
-) {}
-
-@Schema(description = "注册请求")
-public record RegisterRequest(
-    @Schema(description = "用户名", example = "zhangsan", requiredMode = REQUIRED)
-    @NotBlank String username,
-
-    @Schema(description = "邮箱", example = "test@example.com", requiredMode = REQUIRED)
-    @NotBlank String email,
-
-    @Schema(description = "密码（至少8位，含字母和数字）", example = "Abc12345",
-            requiredMode = REQUIRED)
-    @NotBlank String password,
-
-    @Schema(description = "昵称，为空默认取用户名", example = "张三")
-    String nickname,
-
-    @Schema(description = "必须同意用户协议", requiredMode = REQUIRED)
-    @AssertTrue(message = "请先同意用户协议")
-    boolean agreed
-) {}
-
-// ==================== 统一响应 ====================
-@Schema(description = "统一 API 响应")
-public record ApiResponse<T>(
-    @Schema(description = "业务状态码", example = "200")
-    int code,
-    @Schema(description = "提示信息", example = "success")
-    String message,
-    @Schema(description = "响应数据")
-    @JsonInclude(NON_NULL)
-    T data
-) {
-    public static <T> ApiResponse<T> ok(T data) {
-        return new ApiResponse<>(200, "success", data);
-    }
-    public static <T> ApiResponse<T> fail(int code, String message) {
-        return new ApiResponse<>(code, message, null);
-    }
-}
-
-// ==================== 错误码枚举 ====================
-@Getter
-@AllArgsConstructor
-public enum ErrorCode {
-    SUCCESS(200, "操作成功"),
-    UNAUTHORIZED(401, "未登录或会话已过期"),
-    USERNAME_EXISTS(1001, "用户名已存在"),
-    EMAIL_EXISTS(1002, "邮箱已注册"),
-    PASSWORD_WEAK(1003, "密码强度不足"),
-    USERNAME_INVALID(1004, "用户名格式错误"),
-    EMAIL_INVALID(1005, "邮箱格式错误"),
-    AGREEMENT_UNCHECKED(1006, "用户协议未同意"),
-    REGISTER_TOO_FREQUENT(1007, "注册过于频繁"),
-    TOTP_REQUIRED(1008, "需要双因素验证"),
-    TOTP_INVALID(1009, "验证码错误"),
-    LOGIN_FAILED(401, "账号或密码错误"),
-    ACCOUNT_DISABLED(401, "账号已被禁用"),
-    ACCOUNT_LOCKED(401, "账号已被锁定"),
-    RATE_LIMITED(401, "请求过于频繁");
-
-    private final int code;
-    private final String message;
-}
-
-// ==================== 控制器（Swagger + GraphQL）====================
+```java
+// Controller 加 Swagger 注解
 @RestController
 @RequestMapping("/api/v1/auth")
-@Tag(name = "认证管理", description = "登录、注册、退出、MFA")
+@Tag(name = "认证管理", description = "登录、注册、退出、会话校验")
 public class AuthController {
 
     @Operation(summary = "用户登录")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "登录成功"),
-        @ApiResponse(responseCode = "401", description = "账号或密码错误"),
-        @ApiResponse(responseCode = "1008", description = "需要 TOTP 验证")
+        @ApiResponse(responseCode = "401", description = "账号或密码错误")
     })
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<LoginResponse>> login(
@@ -540,259 +379,325 @@ public class AuthController {
         HttpServletRequest httpRequest,
         HttpServletResponse httpResponse
     ) { /* ... */ }
-
-    @Operation(summary = "用户注册")
-    @PostMapping("/register")
-    public ResponseEntity<ApiResponse<Void>> register(
-        @Valid @RequestBody RegisterRequest request,
-        HttpServletRequest httpRequest
-    ) { /* ... */ }
-
-    @Operation(summary = "退出登录")
-    @PostMapping("/logout")
-    public ResponseEntity<ApiResponse<Void>> logout(
-        HttpServletResponse response
-    ) { /* ... */ }
-
-    @Operation(summary = "获取当前用户")
-    @GetMapping("/current-user")
-    public ResponseEntity<ApiResponse<UserInfo>> currentUser() { /* ... */ }
-
-    @Operation(summary = "会话校验")
-    @GetMapping("/check")
-    public ResponseEntity<ApiResponse<Boolean>> check() { /* ... */ }
-
-    @Operation(summary = "唯一性校验")
-    @GetMapping("/check-availability")
-    public ResponseEntity<Map<String, Object>> checkAvailability(
-        @Parameter(description = "校验类型", example = "username", required = true)
-        @RequestParam String type,
-        @Parameter(description = "校验值", example = "zhangsan", required = true)
-        @RequestParam String value
-    ) { /* ... */ }
-
-    @Operation(summary = "绑定 TOTP MFA")
-    @PostMapping("/mfa/setup")
-    public ResponseEntity<ApiResponse<String>> setupMfa() { /* ... */ }
-}
-
-// ==================== GraphQL 控制器 ====================
-@Controller
-public class AuthGraphQLController {
-
-    @QueryMapping
-    @SchemaMapping(typeName = "Query", field = "currentUser")
-    public UserInfo currentUser() { /* ... */ }
-
-    @MutationMapping
-    @SchemaMapping(typeName = "Mutation", field = "login")
-    public LoginResponse login(@Argument LoginInput input) { /* ... */ }
-}
-
-// ==================== 异步事件 ====================
-@Service
-@Slf4j
-public class AuthEventListener {
-
-    @Async
-    @TransactionalEventListener
-    public void handleUserRegistered(UserRegisteredEvent event) {
-        // 发送欢迎邮件（异步）
-        // 记录审计日志
-        log.info("用户注册成功: {}", event.username());
-    }
-
-    @Async
-    @TransactionalEventListener
-    public void handleUserLogin(UserLoginEvent event) {
-        // 异常登录检测
-        // 登录位置分析
-    }
-}
-
-// ==================== Redis 分布式限流 ====================
-@Component
-public class RateLimitService {
-
-    private final RedisTemplate<String, String> redisTemplate;
-
-    public boolean tryAcquire(String key, int limit, int windowSeconds) {
-        String redisKey = "rate:" + key + ":" + Instant.now().getEpochSecond() / windowSeconds;
-        Long count = redisTemplate.opsForValue().increment(redisKey);
-        if (count == 1) {
-            redisTemplate.expire(redisKey, Duration.ofSeconds(windowSeconds));
-        }
-        return count <= limit;
-    }
 }
 ```
 
-### 5.4 Swagger 在线文档
+**访问地址**：
 
 | 地址 | 说明 |
 |------|------|
-| `http://localhost:8080/doc.html` | Knife4j 增强 UI（离线导出、全局参数） |
-| `http://localhost:8080/swagger-ui.html` | Swagger UI 原生 |
+| `http://localhost:8080/doc.html` | Knife4j 增强 UI（可在线调试） |
 | `http://localhost:8080/v3/api-docs` | OpenAPI 3.0 JSON |
-| `http://localhost:8080/graphiql` | GraphQL 调试台（如启用） |
+
+### 6.4 ErrorCode 枚举
+
+```java
+// model/enums/ErrorCode.java
+@Getter
+@AllArgsConstructor
+public enum ErrorCode {
+    SUCCESS(200, "操作成功"),
+    UNAUTHORIZED(401, "未登录或会话已过期"),
+    LOGIN_FAILED(401, "账号或密码错误"),
+    ACCOUNT_DISABLED(401, "账号已被禁用"),
+    ACCOUNT_LOCKED(401, "账号已被锁定"),
+    RATE_LIMITED(401, "请求过于频繁，请稍后再试"),
+    USERNAME_EXISTS(1001, "用户名已存在"),
+    EMAIL_EXISTS(1002, "邮箱已注册"),
+    PASSWORD_WEAK(1003, "密码强度不足：至少8位，包含字母和数字"),
+    USERNAME_INVALID(1004, "用户名格式错误：需4~20位字母/数字/下划线，字母开头"),
+    EMAIL_INVALID(1005, "邮箱格式错误"),
+    AGREEMENT_UNCHECKED(1006, "请先同意用户协议"),
+    REGISTER_TOO_FREQUENT(1007, "注册过于频繁，请稍后再试");
+
+    private final int code;
+    private final String message;
+}
+```
+
+**使用**：`throw new RegisterException(ErrorCode.USERNAME_EXISTS);`
+
+### 6.5 CORS 跨域配置
+
+```java
+// config/CorsConfig.java
+@Configuration
+public class CorsConfig implements WebMvcConfigurer {
+
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/api/**")
+                .allowedOrigins("http://localhost:5173")  // Vite dev server
+                .allowedMethods("GET", "POST", "PUT", "DELETE")
+                .allowCredentials(true);
+    }
+}
+```
+
+### 6.6 多环境配置
+
+```yaml
+# application.yml（公共配置）
+spring:
+  application:
+    name: demo
+  threads:
+    virtual:
+      enabled: true
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+
+---
+# application-dev.yml
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/cc_db?characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
+    username: root
+    password: hello
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: validate   # Flyway 管理表结构
+  flyway:
+    enabled: true
+
+jwt:
+  secret: YourSecretKeyForJWTMustBeAtLeast256BitsLongForHS256
+  expiration: 1800000
+  remember-me-expiration: 604800000
+```
 
 ---
 
-## 6. 前端设计
+## 7. 前端工程详解
 
-### 6.1 Nuxt 3 渲染策略
+### 7.1 项目初始化
 
-```
-┌─────────────────────────────────────────────┐
-│              Nuxt 3 Hybrid Render            │
-├─────────────────────────────────────────────┤
-│  路由          渲染模式         说明          │
-│  /login        SSG（静态生成）  登录页预渲染  │
-│  /register     SSG（静态生成）  注册页预渲染  │
-│  /dashboard    SSR（服务端）   用户数据实时    │
-│  /dashboard/*  SPA（客户端）   交互页          │
-└─────────────────────────────────────────────┘
+```bash
+pnpm create vite frontend --template vue-ts
+cd frontend
+pnpm add vue-router pinia axios element-plus @element-plus/icons-vue
+pnpm add -D @types/node unocss vitest
 ```
 
-### 6.2 核心代码示例
+### 7.2 路由设计
 
 ```typescript
-// ── stores/auth.ts（Pinia + TanStack Query）──
+// router/index.ts
+const routes = [
+  {
+    path: '/login',
+    name: 'Login',
+    component: () => import('@/views/LoginView.vue'),
+    meta: { guest: true }
+  },
+  {
+    path: '/register',
+    name: 'Register',
+    component: () => import('@/views/RegisterView.vue'),
+    meta: { guest: true }
+  },
+  {
+    path: '/dashboard',
+    name: 'Dashboard',
+    component: () => import('@/views/DashboardView.vue'),
+    meta: { requiresAuth: true }
+  },
+  { path: '/', redirect: '/dashboard' }
+]
 
-export const useAuthStore = defineStore('auth', () => {
-  const user = ref<UserInfo | null>(null)
-  const isLoggedIn = computed(() => !!user.value)
+// 路由守卫
+router.beforeEach(async (to, _from, next) => {
+  const authStore = useAuthStore()
 
-  const { mutateAsync: loginMutation } = useMutation({
-    mutationFn: (data: LoginRequest) => authApi.login(data),
-    onSuccess: (res) => {
-      if (res.code === 200) fetchUser()
-    }
-  })
-
-  async function login(account: string, password: string, rememberMe: boolean) {
-    return loginMutation({ account, password, rememberMe })
+  // 需要登录的页面 → 未登录跳 /login
+  if (to.meta.requiresAuth && !authStore.isLoggedIn) {
+    return next('/login')
   }
 
-  return { user, isLoggedIn, login, logout }
+  // 仅游客页面（登录/注册）→ 已登录跳 /dashboard
+  if (to.meta.guest && authStore.isLoggedIn) {
+    return next('/dashboard')
+  }
+
+  next()
 })
+```
 
-// ── composables/usePasswordStrength.ts ──
+### 7.3 Axios 封装
 
-export function usePasswordStrength(password: Ref<string>) {
-  const strength = computed(() => {
-    const val = password.value
-    let score = 0
-    if (val.length >= 8) score++
-    if (/[a-zA-Z]/.test(val)) score++
-    if (/\d/.test(val)) score++
-    if (/[^a-zA-Z0-9]/.test(val)) score++
-    if (val.length >= 10) score++
-
-    if (score <= 2) return { level: 'weak', color: '#e74c3c', label: '弱', width: '33%' }
-    if (score <= 3) return { level: 'medium', color: '#f39c12', label: '中', width: '66%' }
-    return { level: 'strong', color: '#27ae60', label: '强', width: '100%' }
-  })
-  return { strength }
-}
-
-// ── api/request.ts（Axios + 401 自动处理）──
+```typescript
+// api/request.ts
+import axios from 'axios'
+import { ElMessage } from 'element-plus'
 
 const request = axios.create({
   baseURL: '/api/v1',
   timeout: 10000,
-  withCredentials: true
+  withCredentials: true  // 自动携带 Cookie
 })
 
+// 响应拦截：401 自动跳转登录
 request.interceptors.response.use(
   res => res.data,
   error => {
     if (error.response?.status === 401) {
-      const authStore = useAuthStore()
-      authStore.logout()
-      navigateTo('/login')
+      const { useAuthStore } = await import('@/stores/auth')
+      useAuthStore().logout()
+      router.push('/login')
+      ElMessage.warning('会话已过期，请重新登录')
     }
     return Promise.reject(error)
   }
 )
 
-// ── mocks/handlers.ts（MSW Mock）──
-
-export const handlers = [
-  http.post('/api/v1/auth/login', async ({ request }) => {
-    const body = await request.json()
-    if (body.account === 'admin' && body.password === '123456') {
-      return HttpResponse.json({ code: 200, message: '登录成功', data: mockUser })
-    }
-    return HttpResponse.json(
-      { code: 401, message: '账号或密码错误' },
-      { status: 401 }
-    )
-  })
-]
+export default request
 ```
 
-### 6.3 组件设计
+```typescript
+// api/auth.ts
+import request from './request'
+
+export const authApi = {
+  login:     (data: LoginRequest)     => request.post('/auth/login', data),
+  register:  (data: RegisterRequest)  => request.post('/auth/register', data),
+  logout:    ()                       => request.post('/auth/logout'),
+  getUser:   ()                       => request.get('/auth/current-user'),
+  check:     ()                       => request.get('/auth/check'),
+  checkAvailable: (type: string, value: string) =>
+    request.get('/auth/check-availability', { params: { type, value } })
+}
+```
+
+### 7.4 Pinia Store
+
+```typescript
+// stores/auth.ts
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import { authApi } from '@/api/auth'
+
+export const useAuthStore = defineStore('auth', () => {
+  const user = ref<UserInfo | null>(null)
+  const isLoggedIn = computed(() => !!user.value)
+
+  async function login(account: string, password: string, rememberMe: boolean) {
+    const res = await authApi.login({ account, password, rememberMe })
+    if (res.code === 200) {
+      await fetchUser()
+    }
+    return res
+  }
+
+  async function fetchUser() {
+    const res = await authApi.getUser()
+    if (res.code === 200) user.value = res.data!
+  }
+
+  async function logout() {
+    await authApi.logout()
+    user.value = null
+  }
+
+  return { user, isLoggedIn, login, fetchUser, logout }
+})
+```
+
+### 7.5 页面示例（登录页）
 
 ```vue
-<!-- PasswordStrength.vue — 密码强度指示器 -->
+<!-- views/LoginView.vue -->
 <script setup lang="ts">
-const props = defineProps<{ password: string }>()
-const { strength } = usePasswordStrength(toRef(props, 'password'))
+import { ref, reactive } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import { ElMessage } from 'element-plus'
+
+const router = useRouter()
+const authStore = useAuthStore()
+const formRef = ref()
+const loading = ref(false)
+
+const form = reactive({ account: '', password: '', rememberMe: false })
+
+async function handleLogin() {
+  await formRef.value?.validate()
+  loading.value = true
+  try {
+    const res = await authStore.login(form.account, form.password, form.rememberMe)
+    if (res.code === 200) {
+      ElMessage.success('登录成功')
+      router.push('/dashboard')
+    } else {
+      ElMessage.error(res.message)
+    }
+  } catch {
+    ElMessage.error('网络异常')
+  } finally {
+    loading.value = false
+  }
+}
 </script>
 
 <template>
-  <div v-if="props.password" class="password-strength">
-    <div class="strength-bar">
-      <div class="strength-fill"
-        :style="{ width: strength.width, background: strength.color }" />
-    </div>
-    <span :style="{ color: strength.color }">{{ strength.label }}</span>
+  <div class="auth-container">
+    <el-card class="auth-card">
+      <h2>欢迎回来</h2>
+      <el-form ref="formRef" :model="form" @keyup.enter="handleLogin">
+        <el-form-item prop="account"
+          :rules="[{ required: true, message: '请输入用户名或邮箱' }]">
+          <el-input v-model="form.account" placeholder="用户名或邮箱"
+            :prefix-icon="User" />
+        </el-form-item>
+        <el-form-item prop="password"
+          :rules="[{ required: true, message: '请输入密码' }]">
+          <el-input v-model="form.password" type="password"
+            placeholder="密码" :prefix-icon="Lock" show-password />
+        </el-form-item>
+        <el-form-item>
+          <el-checkbox v-model="form.rememberMe">记住我</el-checkbox>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" class="w-full" :loading="loading"
+            @click="handleLogin">
+            {{ loading ? '登录中...' : '登 录' }}
+          </el-button>
+        </el-form-item>
+      </el-form>
+      <div class="text-center">
+        还没有账号？<el-link type="primary" to="/register">立即注册</el-link>
+      </div>
+    </el-card>
   </div>
 </template>
 ```
 
 ---
 
-## 7. API 文档
+## 8. API 文档
 
-### 7.1 REST API
+### 8.1 接口总览
 
-| 方法 | URL | 摘要 | 认证 | 限流 |
-|------|-----|------|------|------|
-| `POST` | `/api/v1/auth/login` | 登录（支持 TOTP） | 否 | 5/min |
-| `POST` | `/api/v1/auth/register` | 注册 | 否 | 3/min |
-| `GET` | `/api/v1/auth/check-availability` | 唯一性校验 | 否 | — |
-| `POST` | `/api/v1/auth/logout` | 退出 | 是 | — |
-| `GET` | `/api/v1/auth/current-user` | 当前用户 | 是 | — |
-| `GET` | `/api/v1/auth/check` | 会话校验 | 是 | — |
-| `POST` | `/api/v1/auth/mfa/setup` | 绑定 MFA | 是 | — |
+| 方法 | URL | 说明 | 认证 |
+|------|-----|------|------|
+| `POST` | `/api/v1/auth/login` | 用户登录 | 否 |
+| `POST` | `/api/v1/auth/register` | 用户注册 | 否 |
+| `GET` | `/api/v1/auth/check-availability` | 唯一性校验 | 否 |
+| `POST` | `/api/v1/auth/logout` | 退出登录 | 是 |
+| `GET` | `/api/v1/auth/current-user` | 获取当前用户 | 是 |
+| `GET` | `/api/v1/auth/check` | 会话校验 | 是 |
 
-### 7.2 GraphQL（可选）
+### 8.2 Swagger 访问
 
-```graphql
-type Query {
-  currentUser: UserInfo
-}
+| 地址 | 说明 |
+|------|------|
+| `http://localhost:8080/doc.html` | Knife4j 增强 UI（支持在线调试） |
+| `http://localhost:8080/v3/api-docs` | OpenAPI 3.0 JSON |
 
-type Mutation {
-  login(input: LoginInput!): LoginResponse
-  register(input: RegisterInput!): RegisterResponse
-  logout: Boolean
-}
-
-type UserInfo {
-  id: ID!
-  username: String!
-  email: String!
-  nickname: String
-  avatarUrl: String
-  status: Int!
-  lastLoginTime: String
-}
-```
-
-### 7.3 错误码
+### 8.3 错误码
 
 | 错误码 | 说明 | HTTP |
 |--------|------|------|
@@ -803,342 +708,234 @@ type UserInfo {
 | 1001 | 用户名已存在 | 400 |
 | 1002 | 邮箱已注册 | 400 |
 | 1003 | 密码强度不足 | 400 |
+| 1004 | 用户名格式错误 | 400 |
+| 1005 | 邮箱格式错误 | 400 |
+| 1006 | 用户协议未同意 | 400 |
 | 1007 | 注册过于频繁 | 400 |
-| 1008 | 需要双因素验证 | 401 |
-| 1009 | 验证码错误 | 401 |
 
 ---
 
-## 8. 数据库设计
+## 9. 数据库设计
 
-> 与 v1.0 一致，新增 Flyway 版本化管理。
+表结构与 v1.0 完全一致，区别在于通过 Flyway 版本化管理：
 
 ```sql
 -- V1__init_t_user.sql
-CREATE TABLE t_user (...);
+CREATE TABLE `t_user` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `username` varchar(50) NOT NULL,
+  `email` varchar(100) NOT NULL,
+  `password_hash` varchar(255) NOT NULL,
+  `nickname` varchar(50) DEFAULT NULL,
+  `avatar_url` varchar(255) DEFAULT NULL,
+  `status` tinyint NOT NULL DEFAULT '1',
+  `email_verified` tinyint NOT NULL DEFAULT '0',
+  `register_ip` varchar(45) DEFAULT NULL,
+  `last_login_time` datetime DEFAULT NULL,
+  `last_login_ip` varchar(45) DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_username` (`username`),
+  UNIQUE KEY `uk_email` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- V2__init_t_login_log.sql
-CREATE TABLE t_login_log (...);
+CREATE TABLE `t_login_log` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` bigint unsigned DEFAULT NULL,
+  `login_account` varchar(100) NOT NULL,
+  `login_result` tinyint NOT NULL,
+  `fail_reason` varchar(100) DEFAULT NULL,
+  `ip_address` varchar(45) NOT NULL,
+  `user_agent` varchar(255) DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-**Flyway 优势**：版本化、可回滚、CI/CD 自动执行、多环境统一。
+> Flyway 启动时自动按版本顺序执行，`ddl-auto` 改为 `validate` 仅校验表结构一致性。
 
 ---
 
-## 9. 安全体系
+## 10. 安全体系
 
 | 层面 | 策略 | 实现 |
 |------|------|------|
-| 传输层 | HTTPS + HSTS | Nginx / CDN |
+| 传输层 | HTTPS（生产）/ HTTP（开发） | Nginx |
 | 跨域 | CORS 白名单 | CorsConfig |
-| 认证 | JWT + HttpOnly Cookie + OAuth2 | Spring Security |
-| 密码 | BCrypt(cost=10) + Passay 策略 | BCryptPasswordEncoder |
-| 双因素 | TOTP（RFC 6238） | TotpService |
-| 限流 | Redis 分布式限流 | RateLimitService |
-| 防暴力 | 5 次失败锁账号 + 验证码 | AuthServiceImpl |
-| 审计 | 每次登录/注册写入日志 | t_login_log |
-| 注入防护 | PreparedStatement + XSS 过滤 | JPA / Hibernate |
-| CSRF | API 无状态，Cookie SameSite=Strict | SecurityConfig |
+| 认证 | JWT + HttpOnly Cookie | JwtAuthFilter |
+| 密码 | BCrypt (cost=10) | BCryptPasswordEncoder |
+| 限流 | IP 维度（登录 5/min、注册 3/min） | ConcurrentHashMap |
+| 防暴力 | 5 次失败锁账号 | AuthServiceImpl |
+| 审计 | 每次登录/注册写入 t_login_log | LoginLogRepository |
+| 注入 | PreparedStatement + XSS 过滤 | JPA / Hibernate |
 
 ---
 
-## 10. 可观测性
+## 11. 部署方案
 
-### 10.1 三支柱
-
-```
-┌──────────────────────────────────────────────────────┐
-│                    可观测性三支柱                        │
-├──────────────┬──────────────────┬────────────────────┤
-│   Metrics    │     Tracing      │      Logging       │
-│   (指标)     │    (链路追踪)     │     (日志聚合)       │
-├──────────────┼──────────────────┼────────────────────┤
-│ Micrometer   │ OpenTelemetry    │ Logback JSON       │
-│ Prometheus   │ Jaeger           │ Loki               │
-│ Grafana      │ Grafana Tempo    │ Grafana            │
-└──────────────┴──────────────────┴────────────────────┘
-```
-
-### 10.2 配置
+### 11.1 Docker Compose 一键启动
 
 ```yaml
-# application.yml
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,metrics,prometheus,info
-  metrics:
-    export:
-      prometheus:
-        enabled: true
-  tracing:
-    sampling:
-      probability: 1.0    # 开发环境全量采样
-```
-
-### 10.3 Grafana 大盘
-
-- **QPS / 延迟 / 错误率** — 黄金指标
-- **登录成功率 / 注册成功率** — 业务指标
-- **JVM 内存 / GC / 线程** — 运行时指标
-- **慢查询 Top 10** — 数据库指标
-
----
-
-## 11. 测试体系
-
-### 11.1 测试金字塔
-
-```
-          ╱  E2E  ╲            Playwright（浏览器端到端）
-         ╱──────────╲          · 登录全流程
-        ╱  集成测试   ╲         · 注册 → 登录 → 仪表盘 → 退出
-       ╱──────────────╲
-      ╱    API 测试    ╲        Spring MockMvc + Testcontainers
-     ╱──────────────────╲       · Controller 层全部端点
-    ╱     单元测试       ╲      Vitest + JUnit 5
-   ╱──────────────────────╲     · Service 层 > 90%
-  ──────────────────────────    · Pinia Store
-```
-
-### 11.2 测试工具链
-
-| 层级 | 后端 | 前端 |
-|------|------|------|
-| 单元 | JUnit 5 + Mockito | Vitest |
-| API | MockMvc + Testcontainers | MSW Mock |
-| E2E | — | Playwright |
-| 契约 | Spring Cloud Contract | — |
-| 变异 | PIT Mutation Testing | — |
-
-### 11.3 测试示例
-
-```java
-// 集成测试 — Testcontainers 启动真实 MySQL
-@SpringBootTest
-@Testcontainers
-class AuthServiceIntegrationTest {
-
-    @Container
-    static MySQLContainer<?> mysql = new MySQLContainer<>("mysql:9.7")
-        .withDatabaseName("cc_db")
-        .withUsername("root")
-        .withPassword("hello");
-
-    @DynamicPropertySource
-    static void configure(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", mysql::getJdbcUrl);
-        registry.add("spring.datasource.username", mysql::getUsername);
-        registry.add("spring.datasource.password", mysql::getPassword);
-    }
-
-    @Autowired AuthService authService;
-
-    @Test
-    void shouldRegisterAndLogin() {
-        // 注册
-        var req = new RegisterRequest("test", "test@test.com",
-                                       "Pass1234", "Test", true);
-        authService.register(req, "127.0.0.1", "JUnit");
-
-        // 登录
-        var loginReq = new LoginRequest("test", "Pass1234", false);
-        var userInfo = authService.login(loginReq, "127.0.0.1", "JUnit",
-                          new MockHttpServletResponse());
-        assertThat(userInfo.username()).isEqualTo("test");
-    }
-}
-```
-
----
-
-## 12. DevOps & CI/CD
-
-### 12.1 GitHub Actions 流水线
-
-```yaml
-# .github/workflows/ci-backend.yml
-name: Backend CI
-
-on: [push, pull_request]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    services:
-      mysql:
-        image: mysql:9.7
-        env:
-          MYSQL_ROOT_PASSWORD: hello
-          MYSQL_DATABASE: cc_db
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          java-version: 21
-          distribution: 'temurin'
-      - name: Unit Tests
-        run: mvn test
-      - name: Integration Tests
-        run: mvn verify -Pintegration
-      - name: Mutation Tests
-        run: mvn pitest:run -Pmutation
-
-  build:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Build Docker Image
-        run: |
-          docker build -t cc_project-backend:${{ github.sha }} backend/
-      - name: Push to Registry
-        run: |
-          docker push ghcr.io/horanlee/cc_project-backend:${{ github.sha }}
-```
-
-### 12.2 Docker 多阶段构建
-
-```dockerfile
-# backend/Dockerfile
-FROM maven:3.9-eclipse-temurin-21-alpine AS build
-WORKDIR /app
-COPY pom.xml .
-RUN mvn dependency:go-offline
-COPY src/ src/
-RUN mvn package -DskipTests
-
-FROM bellsoft/liberica-runtime-container:21-musl AS runtime
-COPY --from=build /app/target/*.jar app.jar
-EXPOSE 8080
-ENTRYPOINT ["java", "-XX:+UseZGC", "-jar", "app.jar"]
-```
-
----
-
-## 13. 部署架构
-
-### 13.1 Docker Compose（开发/测试）
-
-```yaml
+# docker-compose.yml
 services:
   mysql:
     image: mysql:9.7
+    container_name: cc_mysql
     environment:
       MYSQL_ROOT_PASSWORD: hello
       MYSQL_DATABASE: cc_db
-    ports: ["3306:3306"]
-    volumes: [mysql_data:/var/lib/mysql]
-
-  redis:
-    image: redis:7-alpine
-    ports: ["6379:6379"]
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      retries: 10
 
   backend:
     build: ./backend
-    ports: ["8080:8080"]
-    depends_on: [mysql, redis]
+    container_name: cc_backend
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: dev
 
   frontend:
-    build: ./frontend
-    ports: ["3000:3000"]
-    depends_on: [backend]
-
-  nginx:
-    image: nginx:alpine
-    ports: ["80:80", "443:443"]
-    volumes: [./nginx.conf:/etc/nginx/nginx.conf]
-    depends_on: [backend, frontend]
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cc_frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
 
 volumes:
   mysql_data:
 ```
 
-### 13.2 K8s 生产部署（可选）
+### 11.2 Nginx 配置
 
+```nginx
+# nginx.conf
+server {
+    listen 80;
+    server_name localhost;
+
+    # 前端静态资源
+    location / {
+        root   /usr/share/nginx/html;
+        index  index.html;
+        try_files $uri $uri/ /index.html;   # Vue History 模式
+    }
+
+    # 后端 API 代理
+    location /api/ {
+        proxy_pass http://backend:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
 ```
-┌───────────────────────────────────────┐
-│              K8s Cluster              │
-│  ┌─────────┐  ┌─────────┐  ┌───────┐ │
-│  │ Backend │  │Frontend │  │ Nginx │ │
-│  │  Pod×3  │  │  Pod×2  │  │Ingress│ │
-│  └─────────┘  └─────────┘  └───────┘ │
-│  ┌─────────┐  ┌─────────────────────┐ │
-│  │  MySQL  │  │  Redis + RabbitMQ   │ │
-│  │  State  │  │      StatefulSet    │ │
-│  └─────────┘  └─────────────────────┘ │
-└───────────────────────────────────────┘
-```
 
----
+### 11.3 前端 Dockerfile
 
-## 14. 开发规范
+```dockerfile
+# frontend/Dockerfile — 多阶段构建
+FROM node:22-alpine AS build
+WORKDIR /app
+COPY package.json pnpm-lock.yaml ./
+RUN corepack enable && pnpm install --frozen-lockfile
+COPY . .
+RUN pnpm build
 
-### 14.1 后端
-
-| 规范 | 说明 |
-|------|------|
-| 分层 | Controller → Service → Repository，单向依赖 |
-| 异常 | 统一 GlobalExceptionHandler，业务异常用 ErrorCode 枚举 |
-| 响应 | 统一 `ApiResponse<T>` |
-| 日志 | `@Slf4j`，关键操作 info，异常 warn/error |
-| 事务 | Service 层 `@Transactional(readOnly = true)` 默认只读 |
-| 校验 | `@Valid` 双重校验（前端 + 后端） |
-| 文档 | 所有公开 API 加 Swagger 注解 |
-| 异步 | 非核心逻辑用 `@Async` + Spring Events |
-
-### 14.2 前端
-
-| 规范 | 说明 |
-|------|------|
-| 组件 | `<script setup lang="ts">` |
-| 状态 | Pinia（客户端）+ TanStack Query（服务端） |
-| 请求 | `api/` 目录模块化，Axios 统一拦截 |
-| 路由 | Nuxt 自动路由 + `middleware/auth.ts` 守卫 |
-| 样式 | UnoCSS 原子类 + Element Plus |
-| 类型 | TypeScript 严格模式 |
-| 国际化 | Vue I18n，key 命名 `模块.字段` |
-
-### 14.3 Git 提交
-
-```
-FEAT：新功能    FIX：修复    DOC：文档
-REFACT：重构    PERF：性能    TEST：测试
-CHORE：构建    STYLE：格式
+FROM nginx:alpine
+COPY --from=build /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
 ```
 
 ---
 
-## 15. 版本演进路线
+## 12. 本地启动步骤
 
+### 12.1 前置条件
+
+| 软件 | 版本 | 检查 |
+|------|------|------|
+| Java | 21 | `java -version` |
+| Maven | 3.8+ | `mvn -v` |
+| Node.js | 22+ | `node -v` |
+| pnpm | 9+ | `pnpm -v` |
+| Docker | 最新 | `docker -v` |
+
+### 12.2 启动步骤
+
+```bash
+# 1. 克隆仓库
+git clone https://github.com/HoranLee/cc_project.git
+cd cc_project
+
+# 2. 启动 MySQL（Docker）
+docker run -d --name cc_mysql \
+  -e MYSQL_ROOT_PASSWORD=hello \
+  -e MYSQL_DATABASE=cc_db \
+  -p 3306:3306 \
+  mysql:9.7
+
+# 3. 启动后端（Flyway 自动建表）
+cd backend
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
+
+# 4. 启动前端（新终端）
+cd frontend
+pnpm install
+pnpm dev
+
+# 5. 访问
+# 后端 API 文档：http://localhost:8080/doc.html
+# 前端页面：    http://localhost:5173
 ```
-v1.0 ✅ 已完成
-  └─ 单体 MVC + Thymeleaf + JWT + BCrypt
-  └─ 6 个 REST API + 3 个前端页面
-  └─ 登录/注册/退出 + 限流 + 日志
 
-v2.0 📋 架构方案
-  └─ 前后端分离（Spring Boot + Vue 3 SPA）
-  └─ Swagger / Knife4j API 文档
-  └─ Element Plus UI + Pinia + Axios
+### 12.3 Docker Compose 一键启动（可选）
 
-v3.0 🎯 前沿升级（本章案）
-  └─ Java 21 Virtual Threads + Pattern Matching
-  └─ Nuxt 3 SSR/SSG 混合渲染
-  └─ Redis 分布式限流 + Spring Cache
-  └─ Flyway 数据库版本迁移
-  └─ GraphQL 双协议（REST + GraphQL）
-  └─ OAuth2 第三方登录 + TOTP MFA
-  └─ Micrometer + OpenTelemetry + Grafana
-  └─ GraalVM Native Image（毫秒启动）
-  └─ Testcontainers + Playwright + PIT
-  └─ Docker 多阶段构建 + K8s 部署
-  └─ GitHub Actions CI/CD 全自动流水线
-  └─ 异步事件驱动（Spring Events + RabbitMQ）
+```bash
+docker compose up -d
+# 访问 http://localhost
 ```
 
 ---
 
-*文档版本 v3.0 &emsp; 架构师：HoranLee &emsp; 最后更新：2026-06-07*
+## 13. 实施计划
+
+| 步骤 | 内容 | 时间 | 可验证 |
+|------|------|------|--------|
+| 1 | pom.xml 加 Flyway + Knife4j 依赖 | 5 min | 依赖下载成功 |
+| 2 | 建 Flyway 迁移脚本，移 SQL | 10 min | 启动后表自动创建 |
+| 3 | 建 SwaggerConfig | 5 min | `/doc.html` 可访问 |
+| 4 | Controller 加 Swagger 注解 | 15 min | 文档展示完整 |
+| 5 | 建 ErrorCode 枚举，替换硬编码 | 10 min | 编译通过 |
+| 6 | 拆 model 包，建 CorsConfig | 10 min | 编译通过 |
+| 7 | `application.properties` → YAML 多环境 | 10 min | 启动正常 |
+| 8 | Vite + Vue 3 脚手架初始化 | 10 min | `pnpm dev` 启动 |
+| 9 | 路由 + 守卫 + Axios + Pinia | 30 min | 路由跳转正常 |
+| 10 | LoginView.vue | 30 min | 登录页展示+跳转 |
+| 11 | RegisterView.vue | 45 min | 注册页展示+实时校验 |
+| 12 | DashboardView.vue | 20 min | 仪表盘展示+退出 |
+| 13 | Docker Compose + Nginx 配置 | 15 min | `docker compose up` 启动 |
+| 14 | 端到端联调测试 | 15 min | 注册→登录→仪表盘→退出 |
+
+> **总时间：约 4 小时**
+
+---
+
+*文档版本 v2.5 &emsp; 原则：务实可落地 &emsp; 最后更新：2026-06-07*
