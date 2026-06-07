@@ -15,7 +15,9 @@ services:
       retries: 10
 
   backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: cc_backend
     ports:
       - "8080:8080"

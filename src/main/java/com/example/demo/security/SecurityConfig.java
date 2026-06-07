@@ -38,10 +38,9 @@ public class SecurityConfig {
 
                 // 权限配置
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/login", "/register", "/css/**", "/js/**", "/images/**").permitAll()
-                        .requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/check-availability").permitAll()
-                        .requestMatchers("/api/auth/**").authenticated()
-                        .requestMatchers("/dashboard", "/dashboard/**").authenticated()
+                        .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/check-availability").permitAll()
+                        .requestMatchers("/api/v1/auth/**").authenticated()
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/doc.html").permitAll()
                         .anyRequest().permitAll()
                 )
 
