@@ -1,0 +1,23 @@
+# ============================================================
+# K8s 环境配置 — 使用宿主机本地 MySQL（不在 K8s 内部署数据库）
+# 通过 host.docker.internal 从 Kind 容器访问 Windows 宿主机
+# ============================================================
+spring:
+  datasource:
+    url: jdbc:mysql://host.docker.internal:3306/cc_db?characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
+    username: root
+    password: hello
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: validate           # Flyway 管理表结构，JPA 仅校验
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+
+logging:
+  level:
+    com.example.demo: debug

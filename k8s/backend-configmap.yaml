@@ -1,0 +1,30 @@
+# K8s ConfigMap — 后端 Spring Boot 配置
+# 数据库策略：使用宿主机本地 MySQL，不在 K8s 内部署数据库
+# Kind 集群通过 host.docker.internal 访问 Windows 宿主机的 MySQL
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: demo
+data:
+  application-k8s.yml: |
+    spring:
+      datasource:
+        # 宿主机本地 MySQL — 不在 K8s 中部署数据库
+        url: jdbc:mysql://host.docker.internal:3306/cc_db?characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
+        username: root
+        password: hello
+        driver-class-name: com.mysql.cj.jdbc.Driver
+      jpa:
+        show-sql: true
+        hibernate:
+          ddl-auto: validate           # Flyway 管理表结构，JPA 仅校验
+        properties:
+          hibernate:
+            format_sql: true
+      flyway:
+        enabled: true
+
+    logging:
+      level:
+        com.example.demo: debug

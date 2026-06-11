@@ -35,3 +35,7 @@ build/
 ### Frontend ###
 frontend/node_modules/
 frontend/dist/
+frontend/vite.config.ts.timestamp-*.mjs
+
+### MCP (contains tokens) ###
+.mcp.json

@@ -9,7 +9,9 @@ import com.example.demo.model.enums.ErrorCode;
 import com.example.demo.repository.LoginLogRepository;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.security.JwtUtil;
+import com.example.demo.util.IpUtil;
 import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -206,17 +208,27 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public void logout(HttpServletResponse response) {
-        // 清除认证上下文
+    public void logout(HttpServletRequest request, HttpServletResponse response) {
+        // 1. 清除前先获取当前用户信息（用于记录登出日志）
+        Optional<UserInfo> currentUser = getCurrentUser();
+        String ip = IpUtil.getClientIp(request);
+        String userAgent = request.getHeader("User-Agent");
+
+        // 2. 清除认证上下文
         SecurityContextHolder.clearContext();
 
-        // 清除 Cookie
+        // 3. 清除 Cookie
         Cookie cookie = new Cookie("auth_token", "");
         cookie.setMaxAge(0);
         cookie.setPath("/");
         cookie.setHttpOnly(true);
         cookie.setSecure(false); // 开发环境使用 HTTP，生产环境应为 true
         response.addCookie(cookie);
+
+        // 4. 记录登出日志
+        currentUser.ifPresent(user ->
+            saveLoginLog(user.id(), user.username(), 1, "主动注销", ip, userAgent)
+        );
     }
 
     @Override

@@ -36,8 +36,8 @@ async function handleLogin() {
     } else {
       ElMessage.error(res.message || '账号或密码错误')
     }
-  } catch {
-    ElMessage.error('网络异常，请稍后再试')
+  } catch (err: any) {
+    ElMessage.error(err?.message || '网络异常，请稍后再试')
   } finally {
     loading.value = false
   }

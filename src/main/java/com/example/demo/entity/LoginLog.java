@@ -28,7 +28,7 @@ public class LoginLog {
     @Column(name = "login_account", nullable = false, length = 100)
     private String loginAccount;
 
-    @Column(name = "login_result", nullable = false)
+    @Column(name = "login_result", nullable = false, columnDefinition = "TINYINT")
     private Integer loginResult; // 0-失败，1-成功
 
     @Column(name = "fail_reason", length = 100)

@@ -18,6 +18,11 @@ request.interceptors.response.use(
         ElMessage.warning('会话已过期，请重新登录')
         router.push('/login')
       }
+      // 将后端返回的错误消息提取出来，方便调用方展示
+      const data = error.response.data
+      if (data) {
+        return Promise.reject(data)
+      }
     }
     return Promise.reject(error)
   }

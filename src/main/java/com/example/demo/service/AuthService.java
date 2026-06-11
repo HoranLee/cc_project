@@ -3,6 +3,7 @@ package com.example.demo.service;
 import com.example.demo.model.LoginRequest;
 import com.example.demo.model.RegisterRequest;
 import com.example.demo.model.UserInfo;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.util.Optional;
@@ -39,7 +40,7 @@ public interface AuthService {
     /**
      * 用户退出登录。
      */
-    void logout(HttpServletResponse response);
+    void logout(HttpServletRequest request, HttpServletResponse response);
 
     /**
      * 获取当前登录用户信息。

@@ -36,11 +36,11 @@ public class User {
     @Column(name = "avatar_url", length = 255)
     private String avatarUrl;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TINYINT")
     @Builder.Default
     private Integer status = 1; // 0-禁用，1-正常
 
-    @Column(name = "email_verified", nullable = false)
+    @Column(name = "email_verified", nullable = false, columnDefinition = "TINYINT")
     @Builder.Default
     private Integer emailVerified = 0; // 0-未验证，1-已验证
 

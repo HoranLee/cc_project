@@ -78,11 +78,11 @@ public class AuthController {
         }
     }
 
-    @Operation(summary = "退出登录", description = "清除 auth_token Cookie")
+    @Operation(summary = "退出登录", description = "清除 auth_token Cookie 并记录登出日志")
     @ApiResponse(responseCode = "200", description = "退出成功")
     @PostMapping("/logout")
-    public ResponseEntity<R<Void>> logout(HttpServletResponse response) {
-        authService.logout(response);
+    public ResponseEntity<R<Void>> logout(HttpServletRequest request, HttpServletResponse response) {
+        authService.logout(request, response);
         return ResponseEntity.ok(R.ok("已退出登录", null));
     }
 
